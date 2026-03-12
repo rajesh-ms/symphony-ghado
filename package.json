@@ -1,0 +1,49 @@
+{
+  "name": "symphony",
+  "version": "1.0.0",
+  "description": "Orchestrates coding agents to get project work done via Azure DevOps issue tracking",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "symphony": "dist/index.js",
+    "copilot-shim": "dist/shim/copilot-shim.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "shim": "tsx src/shim/copilot-shim.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsc --noEmit"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rajesh-ms/symphony-ghado.git"
+  },
+  "keywords": [
+    "symphony",
+    "coding-agent",
+    "orchestrator",
+    "azure-devops"
+  ],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/rajesh-ms/symphony-ghado/issues"
+  },
+  "homepage": "https://github.com/rajesh-ms/symphony-ghado#readme",
+  "dependencies": {
+    "chokidar": "^5.0.0",
+    "liquidjs": "^10.25.0",
+    "pino": "^10.3.1",
+    "yaml": "^2.8.2"
+  },
+  "devDependencies": {
+    "@types/node": "^25.4.0",
+    "pino-pretty": "^13.1.3",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
+  }
+}
