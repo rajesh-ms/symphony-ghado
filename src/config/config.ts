@@ -258,6 +258,8 @@ export function resolveConfig(
     },
     agent: {
       max_concurrent_agents: toInt(agent.max_concurrent_agents, 10),
+      // agent.max_turns — spec Section 6.4 cheat-sheet, default 20.
+      // Not in Section 5.3.5 front-matter schema but referenced in Section 16.5 worker algorithm.
       max_turns: toInt(agent.max_turns, 20),
       max_retry_backoff_ms: toInt(agent.max_retry_backoff_ms, 300000),
       max_concurrent_agents_by_state: byState,

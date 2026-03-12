@@ -16,7 +16,7 @@ export function startServer(
 ): Server {
   const server = createApp(orchestrator, logger);
 
-  const host = "127.0.0.1";
+  const host = "0.0.0.0";
   server.listen(port, host, () => {
     const addr = server.address();
     const actualPort = typeof addr === "object" && addr ? addr.port : port;

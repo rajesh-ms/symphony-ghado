@@ -4,6 +4,7 @@
 // ---------------------------------------------------------------------------
 
 import { mkdir, rm, stat } from "node:fs/promises";
+import { setTimeout as delay } from "node:timers/promises";
 import type { Workspace, HooksConfig } from "../types.js";
 import {
   resolveWorkspacePath,
@@ -65,7 +66,7 @@ export class WorkspaceManager {
       );
       if (!result.ok) {
         // Fatal: remove partially prepared directory
-        await rm(wsPath, { recursive: true, force: true }).catch(() => {});
+        await rmWithRetry(wsPath).catch(() => {});
         throw new WorkspaceError(
           "after_create_hook_failed",
           result.error ?? "after_create hook failed",
@@ -140,6 +141,25 @@ export class WorkspaceManager {
       }
     }
 
-    await rm(wsPath, { recursive: true, force: true });
+    await rmWithRetry(wsPath);
+  }
+}
+
+/**
+ * Remove a directory with retries to handle EBUSY from WSL subprocess handles.
+ */
+async function rmWithRetry(dirPath: string, maxAttempts = 3): Promise<void> {
+  for (let i = 0; i < maxAttempts; i++) {
+    try {
+      await rm(dirPath, { recursive: true, force: true });
+      return;
+    } catch (err: unknown) {
+      const code = (err as { code?: string }).code;
+      if (code === "EBUSY" && i < maxAttempts - 1) {
+        await delay(200 * (i + 1));
+        continue;
+      }
+      throw err;
+    }
   }
 }

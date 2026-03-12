@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // ---------------------------------------------------------------------------
-// Copilot Protocol Shim
+// Copilot Protocol Shim  [EXTENSION — not required for spec conformance]
 // Speaks the Codex app-server JSON-RPC protocol on stdin/stdout, but
 // forwards prompts to an OpenAI-compatible Chat Completions API.
 //

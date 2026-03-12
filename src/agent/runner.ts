@@ -38,7 +38,8 @@ export async function runAgentAttempt(
     return { ok: false, turnCount: 0, error: `workspace error: ${msg}` };
   }
 
-  // 2. Before-run hook
+  // 2. Before-run hook (Section 5.3.4: runs after workspace preparation,
+  //    before launching the coding agent)
   try {
     await workspaceManager.runBeforeRunHook(workspace.path);
   } catch (err: unknown) {
@@ -46,8 +47,9 @@ export async function runAgentAttempt(
     return { ok: false, turnCount: 0, error: `before_run hook error: ${msg}` };
   }
 
-  // 3. Start app-server session
+  // 3. Start app-server session (launched AFTER before_run per spec Section 5.3.4)
   const client = new AppServerClient(config.codex);
+  client.setTrackerConfig(config.tracker);
   let turnCount = 0;
 
   try {

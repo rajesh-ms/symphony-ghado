@@ -76,22 +76,20 @@ export interface CodexConfig {
   stall_timeout_ms: number;
 }
 
-export interface McpCommonServerConfig {
+export interface ServerConfig {
+  port: number | null;
+}
+
+// ---- MCP Server Config ----
+
+interface McpServerBase {
   enabled: boolean;
   required: boolean;
   startup_timeout_sec: number | null;
   tool_timeout_sec: number | null;
 }
 
-export interface McpStdioServerConfig extends McpCommonServerConfig {
-  transport: "stdio";
-  command: string;
-  args: string[];
-  env: Record<string, string>;
-  cwd: string | null;
-}
-
-export interface McpHttpServerConfig extends McpCommonServerConfig {
+export interface McpHttpServerConfig extends McpServerBase {
   transport: "http";
   url: string;
   bearer_token_env_var: string | null;
@@ -99,14 +97,18 @@ export interface McpHttpServerConfig extends McpCommonServerConfig {
   env_headers: Record<string, string>;
 }
 
-export type McpServerConfig = McpStdioServerConfig | McpHttpServerConfig;
+export interface McpStdioServerConfig extends McpServerBase {
+  transport: "stdio";
+  command: string;
+  args: string[];
+  env: Record<string, string>;
+  cwd: string | null;
+}
+
+export type McpServerConfig = McpHttpServerConfig | McpStdioServerConfig;
 
 export interface McpConfig {
   servers: Record<string, McpServerConfig>;
-}
-
-export interface ServerConfig {
-  port: number | null;
 }
 
 export interface ServiceConfig {

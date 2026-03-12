@@ -1,3 +1,8 @@
+// ---------------------------------------------------------------------------
+// Agent & MCP Server Registry  [EXTENSION — not required for spec conformance]
+// Static catalog of available agents and MCP servers for the dashboard.
+// ---------------------------------------------------------------------------
+
 export type RegistryEntryType = "agent" | "mcp_server";
 
 interface RegistryEntryBase {
@@ -124,11 +129,10 @@ const mcpServerEntries: McpServerRegistryEntry[] = [
 ];
 
 export function getRegistryCatalog(now = new Date()): RegistryCatalog {
-  const entries = [...agentEntries, ...mcpServerEntries].sort((left, right) => {
+  const entries: RegistryEntry[] = [...agentEntries, ...mcpServerEntries].sort((left, right) => {
     if (left.featured !== right.featured) {
       return left.featured ? -1 : 1;
     }
-
     return left.name.localeCompare(right.name);
   });
 

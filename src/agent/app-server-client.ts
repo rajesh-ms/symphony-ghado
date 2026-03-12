@@ -11,7 +11,8 @@ import type {
   CodexEvent,
 } from "./protocol.js";
 import { classifyMessage, extractUsage, extractRateLimits } from "./events.js";
-import type { CodexConfig } from "../types.js";
+import type { CodexConfig, TrackerConfig } from "../types.js";
+import { executeAdoTool, adoApiToolSpec } from "./tools/ado-api.js";
 
 const MAX_LINE_SIZE = 10 * 1024 * 1024; // 10 MB
 
@@ -54,9 +55,17 @@ export class AppServerClient {
   private lineBuffer: string[] = [];
 
   private readonly isWsl: boolean;
+  private trackerConfig: TrackerConfig | null = null;
 
   constructor(private readonly config: CodexConfig) {
     this.isWsl = process.platform === "win32" && /^wsl\s/i.test(config.command);
+  }
+
+  /**
+   * Set tracker config for ado_api tool support.
+   */
+  setTrackerConfig(tracker: TrackerConfig): void {
+    this.trackerConfig = tracker;
   }
 
   get pid(): string | undefined {
@@ -152,10 +161,10 @@ export class AppServerClient {
   ): Promise<string> {
     this.onEvent = onEvent;
 
-    // 1. initialize request
+    // 1. initialize request — declare experimentalApi for dynamic tools
     const initResp = await this.sendRequest("initialize", {
       clientInfo: { name: "symphony", version: "1.0" },
-      capabilities: {},
+      capabilities: { experimentalApi: true },
     });
     if (initResp.error) {
       throw new AppServerError(
@@ -167,12 +176,20 @@ export class AppServerClient {
     // 2. initialized notification
     this.sendNotification("initialized", {});
 
-    // 3. thread/start
-    const threadResp = await this.sendRequest("thread/start", {
+    // 3. thread/start — advertise ado_api tool if tracker is configured
+    const threadParams: Record<string, unknown> = {
       approvalPolicy: this.config.approval_policy,
       sandbox: this.config.thread_sandbox,
       cwd: this.resolveCwd(cwd),
-    });
+    };
+    if (this.trackerConfig?.kind === "ado" && this.trackerConfig.api_key) {
+      threadParams.dynamicTools = [{
+        name: adoApiToolSpec.name,
+        description: adoApiToolSpec.description,
+        inputSchema: adoApiToolSpec.parameters,
+      }];
+    }
+    const threadResp = await this.sendRequest("thread/start", threadParams);
     if (threadResp.error) {
       throw new AppServerError(
         "response_error",
@@ -240,11 +257,14 @@ export class AppServerClient {
       ? `${this.threadId}-${this.turnId}`
       : "unknown";
 
+    // Emit turn_started so orchestrator can track turn_count.
+    // Per Section 4.1.6: turn_count = "number of coding-agent turns started
+    // within the current worker lifetime." This fires on each turn/start response.
     onEvent({
       event: "session_started",
       timestamp: new Date(),
       codex_app_server_pid: this.pid,
-      message: `Session ${sessionId} started`,
+      message: `Turn started: session ${sessionId}`,
     });
 
     // Stream turn messages until completion
@@ -314,9 +334,14 @@ export class AppServerClient {
       this.sendApprovalResponse(msg);
     }
 
-    // Handle unsupported tool calls
+    // Handle tool calls
     if (event.event === "unsupported_tool_call") {
-      this.sendToolFailureResponse(msg);
+      const toolName = (msg.params as Record<string, unknown>)?.name as string | undefined;
+      if (toolName === "ado_api" && this.trackerConfig) {
+        this.handleAdoToolCall(msg);
+      } else {
+        this.sendToolFailureResponse(msg);
+      }
     }
 
     // Extract rate limits if present
@@ -359,6 +384,31 @@ export class AppServerClient {
         result: { success: false, error: "unsupported_tool_call" },
       });
     }
+  }
+
+  private handleAdoToolCall(msg: ProtocolResponse): void {
+    const params = msg.params as Record<string, unknown> | undefined;
+    const toolId = params?.id ?? msg.id;
+    const input = (params?.arguments ?? params?.input ?? {}) as Record<string, unknown>;
+
+    if (!this.trackerConfig) {
+      if (toolId != null) {
+        this.write({ id: toolId as number, result: { success: false, error: "tracker not configured" } });
+      }
+      return;
+    }
+
+    // Execute async, respond when done
+    executeAdoTool(input, this.trackerConfig).then((result) => {
+      if (toolId != null) {
+        this.write({ id: toolId as number, result });
+      }
+    }).catch((err: unknown) => {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      if (toolId != null) {
+        this.write({ id: toolId as number, result: { success: false, error: errMsg } });
+      }
+    });
   }
 
   private streamUntilTurnEnd(

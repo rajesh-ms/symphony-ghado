@@ -1,0 +1,37 @@
+---
+tracker:
+  kind: ado
+  endpoint: $ADO_ENDPOINT
+  api_key: $ADO_PAT
+  project_slug: MyProject
+  active_states: [New, Active]
+  terminal_states: [Closed, Resolved, Done, Cancelled]
+polling:
+  interval_ms: 30000
+workspace:
+  root: $SYMPHONY_WORKSPACE_ROOT
+hooks:
+  after_create: |
+    git clone $REPO_URL .
+  before_run: |
+    git fetch && git checkout main && git pull
+agent:
+  max_concurrent_agents: 5
+  max_turns: 20
+codex:
+  # Option A: Use Codex app-server (default)
+  # command: codex app-server
+
+  # Option B: Use GitHub Copilot via the protocol shim
+  # Requires: COPILOT_API_KEY (or OPENAI_API_KEY / GITHUB_TOKEN)
+  # Optional: COPILOT_API_BASE, COPILOT_MODEL, COPILOT_MAX_TOKENS
+  command: node dist/shim/copilot-shim.js
+
+  approval_policy: auto-edit
+  turn_timeout_ms: 3600000
+---
+You are working on issue {{ issue.identifier }}: {{ issue.title }}.
+
+{{ issue.description }}
+
+{% if attempt %}This is retry attempt {{ attempt }}.{% endif %}

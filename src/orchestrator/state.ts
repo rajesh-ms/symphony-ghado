@@ -70,7 +70,8 @@ export function isDispatchEligible(
     if (countInState >= stateLimit) return false;
   }
 
-  // Blocker rule for "New": don't dispatch if any blocker is non-terminal
+  // Blocker rule for "New" (Section 8.2): don't dispatch if any blocker is non-terminal.
+  // Blocker states are normalized (trim + lowercase) per Section 4.2 before comparison.
   if (normState === "new" && issue.blocked_by.length > 0) {
     const hasActiveBlocker = issue.blocked_by.some((b) => {
       if (!b.state) return true; // Unknown state = assume blocking
@@ -114,6 +115,8 @@ export function availableSlots(state: OrchestratorState): number {
 
 /**
  * Count running issues by normalized state.
+ * Per Section 8.3: counts by the live tracker state from the running entry's
+ * issue snapshot (updated during reconciliation), not the original dispatch state.
  */
 function countRunningByState(
   state: OrchestratorState,

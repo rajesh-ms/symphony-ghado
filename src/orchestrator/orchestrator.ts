@@ -566,6 +566,8 @@ export class Orchestrator {
       entry.codex_app_server_pid = event.codex_app_server_pid;
     }
 
+    // Section 4.1.6: turn_count tracks turns started within the current worker
+    // lifetime. session_started fires on each turn/start response in the worker.
     if (event.event === "session_started") {
       entry.turn_count++;
     }

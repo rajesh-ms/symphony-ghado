@@ -5,6 +5,35 @@
 
 import { spawn } from "node:child_process";
 
+/**
+ * Convert a Windows path (C:\foo\bar) to a WSL path (/mnt/c/foo/bar).
+ */
+function windowsToWslPath(winPath: string): string {
+  const match = winPath.match(/^([A-Za-z]):[/\\](.*)/);
+  if (match) {
+    const drive = match[1].toLowerCase();
+    const rest = match[2].replace(/\\/g, "/");
+    return `/mnt/${drive}/${rest}`;
+  }
+  return winPath.replace(/\\/g, "/");
+}
+
+/**
+ * Build shell export statements for env vars that need forwarding to WSL.
+ */
+function buildEnvExports(varNames: string[]): string {
+  const exports: string[] = [];
+  for (const name of varNames) {
+    const val = process.env[name];
+    if (val) {
+      // Escape single quotes in the value
+      const escaped = val.replace(/'/g, "'\\''");
+      exports.push(`export ${name}='${escaped}'`);
+    }
+  }
+  return exports.length > 0 ? exports.join(" && ") + " && " : "";
+}
+
 export interface HookResult {
   ok: boolean;
   error?: string;
@@ -21,14 +50,27 @@ export async function runHook(
 ): Promise<HookResult> {
   return new Promise<HookResult>((res) => {
     const isWindows = process.platform === "win32";
-    const shell = isWindows ? "cmd.exe" : "bash";
-    const args = isWindows ? ["/c", script] : ["-lc", script];
 
-    const child = spawn(shell, args, {
-      cwd,
-      stdio: ["ignore", "pipe", "pipe"],
-      env: process.env,
-    });
+    let child;
+    if (isWindows) {
+      // On Windows, run hooks through WSL bash so bash syntax works.
+      // Convert the Windows cwd to a WSL /mnt/ path.
+      const wslCwd = windowsToWslPath(cwd);
+      // Forward key env vars that WSL won't inherit from Windows
+      const envExports = buildEnvExports(["ADO_PAT", "OPENAI_API_KEY", "GITHUB_TOKEN"]);
+      const wrappedScript = `${envExports}cd "${wslCwd}" && ${script}`;
+      child = spawn("wsl", ["--", "bash", "-c", wrappedScript], {
+        cwd,
+        stdio: ["ignore", "pipe", "pipe"],
+        env: process.env,
+      });
+    } else {
+      child = spawn("bash", ["-lc", script], {
+        cwd,
+        stdio: ["ignore", "pipe", "pipe"],
+        env: process.env,
+      });
+    }
 
     let stdout = "";
     let stderr = "";

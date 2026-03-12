@@ -94,11 +94,23 @@ export function classifyMessage(
 
   // General notifications
   if (msg.method && !msg.id) {
+    // Try to extract usage from any notification (codex may send it under various methods)
+    const usage = extractUsage(msg);
+    // If this notification carries token usage, classify it as a token event
+    if (usage && (usage.input_tokens > 0 || usage.output_tokens > 0 || usage.total_tokens > 0)) {
+      return {
+        ...base,
+        event: "token_usage_updated",
+        usage,
+        message: "Token usage updated",
+      };
+    }
     return {
       ...base,
       event: "notification",
       payload: msg.params as Record<string, unknown>,
       message: summarizeNotification(msg),
+      usage,
     };
   }
 
@@ -142,25 +154,46 @@ function isInputRequired(msg: ProtocolResponse): boolean {
 export function extractUsage(msg: ProtocolResponse): TokenUsage | undefined {
   const params = (msg.params ?? msg.result ?? {}) as Record<string, unknown>;
 
-  // Shape 1: thread/tokenUsage/updated → params.usage
+  // Shape 1: thread/tokenUsage/updated → params.tokenUsage.total (camelCase)
+  const tokenUsage = params.tokenUsage as Record<string, unknown> | undefined;
+  if (tokenUsage) {
+    const total = tokenUsage.total as Record<string, unknown> | undefined;
+    if (total) {
+      return parseTokenFields(total);
+    }
+    return parseTokenFields(tokenUsage);
+  }
+
+  // Shape 2: params.usage (snake_case)
   const usage = params.usage as Record<string, unknown> | undefined;
   if (usage) {
     return parseTokenFields(usage);
   }
 
-  // Shape 2: total_token_usage wrapper
-  const totalUsage = params.total_token_usage as
-    | Record<string, unknown>
-    | undefined;
+  // Shape 3: codex/event/token_count → params.msg.info.total_token_usage
+  const msgPayload = params.msg as Record<string, unknown> | undefined;
+  if (msgPayload?.info) {
+    const info = msgPayload.info as Record<string, unknown>;
+    const totalUsage = info.total_token_usage as Record<string, unknown> | undefined;
+    if (totalUsage) {
+      return parseTokenFields(totalUsage);
+    }
+  }
+
+  // Shape 4: total_token_usage wrapper
+  const totalUsage = params.total_token_usage as Record<string, unknown> | undefined;
   if (totalUsage) {
     return parseTokenFields(totalUsage);
   }
 
-  // Shape 3: Inline token fields
+  // Shape 5: Inline token fields
   if (
     "input_tokens" in params ||
     "output_tokens" in params ||
-    "total_tokens" in params
+    "total_tokens" in params ||
+    "inputTokens" in params ||
+    "outputTokens" in params ||
+    "totalTokens" in params
   ) {
     return parseTokenFields(params);
   }

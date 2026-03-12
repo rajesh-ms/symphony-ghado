@@ -65,7 +65,9 @@ describe("WorkspaceManager", () => {
   });
 
   afterEach(async () => {
-    await rm(root, { recursive: true, force: true });
+    // Small delay to let WSL subprocess handles release on Windows
+    await new Promise((r) => setTimeout(r, 300));
+    await rm(root, { recursive: true, force: true }).catch(() => {});
   });
 
   it("creates a new workspace and reports created_now=true", async () => {
