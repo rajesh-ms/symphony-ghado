@@ -21,14 +21,16 @@ export class PromptRenderError extends Error {
 /**
  * Render the workflow prompt template with issue data.
  *
- * @param template - Liquid-flavored Markdown from WORKFLOW.md body (may be empty)
- * @param issue    - Normalized issue record
- * @param attempt  - null for first run, integer for retry/continuation
+ * @param template         - Liquid-flavored Markdown from WORKFLOW.md body (may be empty)
+ * @param issue            - Normalized issue record
+ * @param attempt          - null for first run, integer for retry/continuation
+ * @param previousProgress - Contents of SYMPHONY_PROGRESS.md from prior runs (null if none)
  */
 export async function renderPrompt(
   template: string,
   issue: Issue,
   attempt: number | null,
+  previousProgress?: string | null,
 ): Promise<string> {
   const effectiveTemplate = template.trim() || DEFAULT_PROMPT;
 
@@ -59,7 +61,11 @@ export async function renderPrompt(
 
   try {
     const tpl = engine.parse(effectiveTemplate);
-    const result = await engine.render(tpl, { issue: issueData, attempt });
+    const result = await engine.render(tpl, {
+      issue: issueData,
+      attempt,
+      previous_progress: previousProgress ?? null,
+    });
     return result;
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);

@@ -60,7 +60,14 @@ Issue {{ issue.identifier }}: {{ issue.title }}
 {% endif %}
 
 {% if attempt %}
-> This is retry attempt {{ attempt }}. Check what already exists in the workspace and continue.
+> This is retry attempt {{ attempt }}. Check what already exists in the workspace and continue from where the previous run left off.
+{% endif %}
+
+{% if previous_progress %}
+### Previous Run Progress
+The following is the progress log from prior agent runs on this issue. Use it to understand what was already done and what remains.
+
+{{ previous_progress }}
 {% endif %}
 
 ### Instructions
