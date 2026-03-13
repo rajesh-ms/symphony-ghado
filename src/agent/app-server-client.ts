@@ -338,7 +338,7 @@ export class AppServerClient {
     if (event.event === "unsupported_tool_call") {
       const params = msg.params as Record<string, unknown> | undefined;
       const toolName = (params?.tool ?? params?.name ?? params?.toolName) as string | undefined;
-      process.stderr.write(`[symphony] Tool call received: tool=${toolName} callId=${params?.callId} method=${msg.method}\n`);
+      process.stderr.write(`[symphony] Tool call received: tool=${toolName} callId=${params?.callId} msgId=${msg.id} method=${msg.method}\n`);
       if (toolName === "ado_api" && this.trackerConfig) {
         this.handleAdoToolCall(msg);
       } else {
@@ -379,49 +379,57 @@ export class AppServerClient {
 
   private sendToolFailureResponse(msg: ProtocolResponse): void {
     const params = msg.params as Record<string, unknown> | undefined;
-    const callId = params?.callId ?? params?.id ?? msg.id;
-    if (callId != null) {
-      this.sendNotification("dynamic_tool_response", {
-        callId,
-        contentItems: [{ type: "inputText", text: JSON.stringify({ error: "unsupported_tool_call" }) }],
+    const callId = params?.callId;
+    if (msg.id != null) {
+      this.write({
+        id: msg.id,
+        result: {
+          success: false,
+          callId,
+          contentItems: [{ type: "inputText", text: JSON.stringify({ error: "unsupported_tool_call" }) }],
+        },
       });
     }
   }
 
   private handleAdoToolCall(msg: ProtocolResponse): void {
     const params = msg.params as Record<string, unknown> | undefined;
-    const callId = params?.callId ?? params?.id ?? msg.id;
+    const callId = params?.callId;
+    const rpcId = msg.id;
     const input = (params?.arguments ?? params?.input ?? {}) as Record<string, unknown>;
 
-    process.stderr.write(`[symphony] ADO tool call: callId=${callId} input=${JSON.stringify(input).slice(0, 500)}\n`);
+    process.stderr.write(`[symphony] ADO tool call: rpcId=${rpcId} callId=${callId} input=${JSON.stringify(input).slice(0, 500)}\n`);
 
     if (!this.trackerConfig) {
-      if (callId != null) {
-        this.sendNotification("dynamic_tool_response", {
+      if (rpcId != null) {
+        this.write({ id: rpcId, result: {
+          success: false,
           callId,
           contentItems: [{ type: "inputText", text: JSON.stringify({ error: "tracker not configured" }) }],
-        });
+        }});
       }
       return;
     }
 
     // Execute async, respond when done
     executeAdoTool(input, this.trackerConfig).then((result) => {
-      process.stderr.write(`[symphony] ADO tool result: callId=${callId} success=${result.success} status=${result.status}\n`);
-      if (callId != null) {
-        this.sendNotification("dynamic_tool_response", {
+      process.stderr.write(`[symphony] ADO tool result: rpcId=${rpcId} callId=${callId} success=${result.success} status=${result.status}\n`);
+      if (rpcId != null) {
+        this.write({ id: rpcId, result: {
+          success: result.success,
           callId,
           contentItems: [{ type: "inputText", text: JSON.stringify(result) }],
-        });
+        }});
       }
     }).catch((err: unknown) => {
       const errMsg = err instanceof Error ? err.message : String(err);
-      process.stderr.write(`[symphony] ADO tool error: callId=${callId} error=${errMsg}\n`);
-      if (callId != null) {
-        this.sendNotification("dynamic_tool_response", {
+      process.stderr.write(`[symphony] ADO tool error: rpcId=${rpcId} callId=${callId} error=${errMsg}\n`);
+      if (rpcId != null) {
+        this.write({ id: rpcId, result: {
+          success: false,
           callId,
           contentItems: [{ type: "inputText", text: JSON.stringify({ error: errMsg }) }],
-        });
+        }});
       }
     });
   }
