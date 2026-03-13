@@ -337,8 +337,8 @@ export class AppServerClient {
     // Handle tool calls
     if (event.event === "unsupported_tool_call") {
       const params = msg.params as Record<string, unknown> | undefined;
-      const toolName = (params?.name ?? params?.toolName) as string | undefined;
-      process.stderr.write(`[symphony] Tool call received: name=${toolName} method=${msg.method} params_keys=${params ? Object.keys(params).join(',') : 'none'}\n`);
+      const toolName = (params?.tool ?? params?.name ?? params?.toolName) as string | undefined;
+      process.stderr.write(`[symphony] Tool call received: tool=${toolName} callId=${params?.callId} method=${msg.method}\n`);
       if (toolName === "ado_api" && this.trackerConfig) {
         this.handleAdoToolCall(msg);
       } else {
@@ -378,8 +378,8 @@ export class AppServerClient {
   }
 
   private sendToolFailureResponse(msg: ProtocolResponse): void {
-    const toolId =
-      (msg.params as Record<string, unknown>)?.id ?? msg.id;
+    const params = msg.params as Record<string, unknown> | undefined;
+    const toolId = params?.callId ?? params?.id ?? msg.id;
     if (toolId != null) {
       this.write({
         id: toolId as number,
@@ -393,7 +393,7 @@ export class AppServerClient {
 
   private handleAdoToolCall(msg: ProtocolResponse): void {
     const params = msg.params as Record<string, unknown> | undefined;
-    const toolId = params?.id ?? msg.id;
+    const toolId = params?.callId ?? params?.id ?? msg.id;
     const input = (params?.arguments ?? params?.input ?? {}) as Record<string, unknown>;
 
     process.stderr.write(`[symphony] ADO tool call: toolId=${toolId} input=${JSON.stringify(input).slice(0, 500)}\n`);
