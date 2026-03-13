@@ -10,6 +10,7 @@ function makeIssue(overrides: Partial<Issue> = {}): Issue {
     description: "Widget is broken, need to fix it.",
     priority: 2,
     state: "Active",
+    work_item_type: null,
     branch_name: null,
     url: "https://dev.azure.com/org/proj/_workitems/edit/42",
     labels: ["bug", "p2"],

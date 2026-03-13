@@ -21,8 +21,8 @@ hooks:
     git config user.name "Symphony Agent"
   before_run: |
     # Copy SKILL.md into agent workspace for the agent to read
-    SKILL_SOURCE="$(cd "$(pwd)/../.." && pwd)/.symphony/SKILL.md"
-    if [ -f "$SKILL_SOURCE" ] && [ ! -f "./SKILL.md" ]; then
+    SKILL_SOURCE="../../.symphony/SKILL.md"
+    if [ -f "$SKILL_SOURCE" ]; then
       cp "$SKILL_SOURCE" ./SKILL.md
     fi
     echo "Starting agent work on issue-$(basename $(pwd))"

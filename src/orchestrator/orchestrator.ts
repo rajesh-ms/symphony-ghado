@@ -269,9 +269,18 @@ export class Orchestrator {
         return;
       }
 
-      // 4. Sort and dispatch
+      // 4. Handle Epics: check children, auto-close if all terminal, skip dispatch
       const sorted = sortForDispatch(candidates);
+      const actionable: Issue[] = [];
       for (const issue of sorted) {
+        if (issue.work_item_type?.toLowerCase() === "epic") {
+          await this.handleEpic(issue);
+        } else {
+          actionable.push(issue);
+        }
+      }
+
+      for (const issue of actionable) {
         if (availableSlots(this.state) <= 0) break;
         if (isDispatchEligible(issue, this.state, this.config)) {
           this.dispatchIssue(issue, null);
@@ -349,6 +358,59 @@ export class Orchestrator {
         );
         this.terminateRunning(id, false);
       }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Private: Epic auto-close
+  // ---------------------------------------------------------------------------
+
+  private async handleEpic(issue: Issue): Promise<void> {
+    if (!this.tracker.fetchChildIds || !this.tracker.transitionIssue) {
+      this.logger.debug(
+        { issue_id: issue.id },
+        "Tracker does not support child/transition — skipping Epic",
+      );
+      return;
+    }
+
+    try {
+      const childIds = await this.tracker.fetchChildIds(issue.id);
+      if (childIds.length === 0) {
+        this.logger.info(
+          { issue_id: issue.id, issue_identifier: issue.identifier },
+          "Epic has no children — skipping",
+        );
+        return;
+      }
+
+      const children = await this.tracker.fetchIssueStatesByIds(childIds);
+      const terminalStates = this.config.tracker.terminal_states.map(normalizeState);
+
+      const allTerminal = children.every((c) =>
+        terminalStates.includes(normalizeState(c.state)),
+      );
+
+      if (allTerminal) {
+        this.logger.info(
+          { issue_id: issue.id, issue_identifier: issue.identifier, child_count: childIds.length },
+          "All Epic children are terminal — closing Epic",
+        );
+        await this.tracker.transitionIssue(issue.id, "Done");
+      } else {
+        const openChildren = children
+          .filter((c) => !terminalStates.includes(normalizeState(c.state)))
+          .map((c) => `${c.identifier}(${c.state})`);
+        this.logger.debug(
+          { issue_id: issue.id, open_children: openChildren },
+          "Epic has open children — skipping",
+        );
+      }
+    } catch (err: unknown) {
+      this.logger.warn(
+        { issue_id: issue.id, err },
+        "Failed to handle Epic children check",
+      );
     }
   }
 

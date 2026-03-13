@@ -84,6 +84,35 @@ export class AdoClient implements TrackerClient {
     });
   }
 
+  // ---- Epic child/transition helpers ----
+
+  async fetchChildIds(issueId: string): Promise<string[]> {
+    const url = `${this.baseUrl}/${encodeURIComponent(this.projectSlug)}/_apis/wit/workitems/${issueId}?$expand=relations&api-version=${ADO_API_VERSION}`;
+    const response = await this.request(url, { method: "GET" });
+    const data = (await response.json()) as AdoWorkItem;
+    const childIds: string[] = [];
+    if (data.relations) {
+      for (const rel of data.relations) {
+        if (rel.rel === "System.LinkTypes.Hierarchy-Forward") {
+          const match = rel.url.match(/workItems\/(\d+)/);
+          if (match) childIds.push(match[1]);
+        }
+      }
+    }
+    return childIds;
+  }
+
+  async transitionIssue(issueId: string, newState: string): Promise<void> {
+    const url = `${this.baseUrl}/${encodeURIComponent(this.projectSlug)}/_apis/wit/workitems/${issueId}?api-version=${ADO_API_VERSION}`;
+    await this.request(url, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json-patch+json" },
+      body: JSON.stringify([
+        { op: "replace", path: "/fields/System.State", value: newState },
+      ]),
+    });
+  }
+
   // ---- Internal helpers ----
 
   private async fetchCurrentUserEmail(): Promise<string> {

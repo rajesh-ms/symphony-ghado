@@ -17,6 +17,7 @@ export interface Issue {
   description: string | null;
   priority: number | null;
   state: string;
+  work_item_type: string | null;
   branch_name: string | null;
   url: string | null;
   labels: string[];

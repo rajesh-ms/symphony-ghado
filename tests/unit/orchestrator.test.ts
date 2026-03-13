@@ -57,6 +57,7 @@ function makeIssue(overrides: Partial<Issue> = {}): Issue {
     description: null,
     priority: 2,
     state: "Active",
+    work_item_type: null,
     branch_name: null,
     url: null,
     labels: [],

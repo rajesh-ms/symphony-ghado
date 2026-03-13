@@ -74,6 +74,11 @@ export function normalizeAdoWorkItem(
     htmlUrl ??
     `${orgUrl.replace(/\/$/, "")}/${encodeURIComponent(projectSlug)}/_workitems/edit/${item.id}`;
 
+  const work_item_type =
+    typeof f["System.WorkItemType"] === "string"
+      ? f["System.WorkItemType"]
+      : null;
+
   return {
     id: String(item.id),
     identifier: String(item.id),
@@ -84,6 +89,7 @@ export function normalizeAdoWorkItem(
         : null,
     priority,
     state: String(f["System.State"] ?? ""),
+    work_item_type,
     branch_name: null, // ADO doesn't expose branch in standard fields
     url,
     labels,
