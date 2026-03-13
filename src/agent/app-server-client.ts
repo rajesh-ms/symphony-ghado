@@ -394,17 +394,12 @@ export class AppServerClient {
     const toolId = params?.id ?? msg.id;
     const input = (params?.arguments ?? params?.input ?? {}) as Record<string, unknown>;
 
-    // Debug: log the incoming tool call message and the response we send
-    process.stderr.write(`[symphony-debug] ado_api tool call received: ${JSON.stringify(msg)}\n`);
-
     if (!this.trackerConfig) {
       if (toolId != null) {
-        const resp = { id: toolId as number, result: {
+        this.write({ id: toolId as number, result: {
           success: false,
           contentItems: [{ type: "inputText", text: JSON.stringify({ error: "tracker not configured" }) }],
-        }};
-        process.stderr.write(`[symphony-debug] sending response: ${JSON.stringify(resp)}\n`);
-        this.write(resp);
+        }});
       }
       return;
     }
@@ -412,22 +407,18 @@ export class AppServerClient {
     // Execute async, respond when done
     executeAdoTool(input, this.trackerConfig).then((result) => {
       if (toolId != null) {
-        const resp = { id: toolId as number, result: {
+        this.write({ id: toolId as number, result: {
           success: result.success,
           contentItems: [{ type: "inputText", text: JSON.stringify(result) }],
-        }};
-        process.stderr.write(`[symphony-debug] sending response: ${JSON.stringify(resp)}\n`);
-        this.write(resp);
+        }});
       }
     }).catch((err: unknown) => {
       const errMsg = err instanceof Error ? err.message : String(err);
       if (toolId != null) {
-        const resp = { id: toolId as number, result: {
+        this.write({ id: toolId as number, result: {
           success: false,
           contentItems: [{ type: "inputText", text: JSON.stringify({ error: errMsg }) }],
-        }};
-        process.stderr.write(`[symphony-debug] sending error response: ${JSON.stringify(resp)}\n`);
-        this.write(resp);
+        }});
       }
     });
   }
