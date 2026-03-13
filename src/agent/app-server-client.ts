@@ -379,10 +379,10 @@ export class AppServerClient {
 
   private sendToolFailureResponse(msg: ProtocolResponse): void {
     const params = msg.params as Record<string, unknown> | undefined;
-    const toolId = params?.callId ?? params?.id ?? msg.id;
-    if (toolId != null) {
+    const callId = params?.callId ?? params?.id ?? msg.id;
+    if (callId != null) {
       this.write({
-        id: toolId as number,
+        id: callId,
         result: {
           success: false,
           contentItems: [{ type: "inputText", text: JSON.stringify({ error: "unsupported_tool_call" }) }],
@@ -393,14 +393,14 @@ export class AppServerClient {
 
   private handleAdoToolCall(msg: ProtocolResponse): void {
     const params = msg.params as Record<string, unknown> | undefined;
-    const toolId = params?.callId ?? params?.id ?? msg.id;
+    const callId = params?.callId ?? params?.id ?? msg.id;
     const input = (params?.arguments ?? params?.input ?? {}) as Record<string, unknown>;
 
-    process.stderr.write(`[symphony] ADO tool call: toolId=${toolId} input=${JSON.stringify(input).slice(0, 500)}\n`);
+    process.stderr.write(`[symphony] ADO tool call: callId=${callId} input=${JSON.stringify(input).slice(0, 500)}\n`);
 
     if (!this.trackerConfig) {
-      if (toolId != null) {
-        this.write({ id: toolId as number, result: {
+      if (callId != null) {
+        this.write({ id: callId, result: {
           success: false,
           contentItems: [{ type: "inputText", text: JSON.stringify({ error: "tracker not configured" }) }],
         }});
@@ -410,16 +410,18 @@ export class AppServerClient {
 
     // Execute async, respond when done
     executeAdoTool(input, this.trackerConfig).then((result) => {
-      if (toolId != null) {
-        this.write({ id: toolId as number, result: {
+      process.stderr.write(`[symphony] ADO tool result: callId=${callId} success=${result.success} status=${result.status}\n`);
+      if (callId != null) {
+        this.write({ id: callId, result: {
           success: result.success,
           contentItems: [{ type: "inputText", text: JSON.stringify(result) }],
         }});
       }
     }).catch((err: unknown) => {
       const errMsg = err instanceof Error ? err.message : String(err);
-      if (toolId != null) {
-        this.write({ id: toolId as number, result: {
+      process.stderr.write(`[symphony] ADO tool error: callId=${callId} error=${errMsg}\n`);
+      if (callId != null) {
+        this.write({ id: callId, result: {
           success: false,
           contentItems: [{ type: "inputText", text: JSON.stringify({ error: errMsg }) }],
         }});
