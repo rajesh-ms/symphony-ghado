@@ -20,6 +20,11 @@ hooks:
     git config user.email "symphony@agent.local"
     git config user.name "Symphony Agent"
   before_run: |
+    # Copy SKILL.md into agent workspace for the agent to read
+    SKILL_SOURCE="$(cd "$(pwd)/../.." && pwd)/.symphony/SKILL.md"
+    if [ -f "$SKILL_SOURCE" ] && [ ! -f "./SKILL.md" ]; then
+      cp "$SKILL_SOURCE" ./SKILL.md
+    fi
     echo "Starting agent work on issue-$(basename $(pwd))"
   after_run: |
     git add -A
@@ -44,7 +49,8 @@ server:
   port: 3000
 ---
 You are a senior software engineer working on an AI Agent Marketplace project.
-Your workspace is an empty directory — initialize it as a new project and build the requested feature.
+
+**Read `SKILL.md` in your workspace first** — it contains the full workflow you must follow (triage, status updates, planning, implementation, closing).
 
 ## Current Task
 Issue {{ issue.identifier }}: {{ issue.title }}
@@ -70,25 +76,9 @@ The following is the progress log from prior agent runs on this issue. Use it to
 {{ previous_progress }}
 {% endif %}
 
-### Instructions
-1. **Analyze** the issue requirements carefully.
-2. **Create files** in your workspace directory to implement the solution:
-   - Initialize a project structure (e.g. package.json, tsconfig.json)
-   - Write the implementation code
-   - Add basic tests
-3. **Create project documentation**:
-   - `README.md` — project overview, setup instructions, usage examples
-   - `AGENTS.md` — navigation guide for AI agents: repo map, key files table, build/test commands, architecture summary, constraints
-   - `docs/architecture.md` — system layers, data flow diagram, concurrency model, key invariants
-   - `docs/decisions.md` — design decisions with rationale (why this approach, alternatives considered)
-4. **Update the ADO work item** using the `ado_api` tool:
-   - Add a comment describing what you built: use `ado_api` with `method: "PATCH"`, `path: "/agent-marketplace/_apis/wit/workitems/{{ issue.identifier }}?api-version=7.1"`, `body: [{"op": "add", "path": "/fields/System.History", "value": "<your summary>"}]`. Set Content-Type to `application/json-patch+json`.
-   - Change the state to "Doing": use `ado_api` with `method: "PATCH"`, `path: "/agent-marketplace/_apis/wit/workitems/{{ issue.identifier }}?api-version=7.1"`, `body: [{"op": "replace", "path": "/fields/System.State", "value": "Doing"}]`. Set Content-Type to `application/json-patch+json`.
-5. After completing implementation, change state to "Done":
-   - Use `ado_api` with `method: "PATCH"`, `path: "/agent-marketplace/_apis/wit/workitems/{{ issue.identifier }}?api-version=7.1"`, `body: [{"op": "replace", "path": "/fields/System.State", "value": "Done"}]`
+### ADO API Details
+- Project: `agent-marketplace`
+- Work item ID: `{{ issue.identifier }}`
+- API path: `/agent-marketplace/_apis/wit/workitems/{{ issue.identifier }}?api-version=7.1`
 
-### Key Constraints
-- Write real, working code — not stubs or placeholders
-- Use TypeScript/Node.js for the implementation
-- Each workspace is isolated per issue
-- Always create AGENTS.md, README.md, and docs/ in every project
+Follow the workflow in `SKILL.md` now.

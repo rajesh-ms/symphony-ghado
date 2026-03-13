@@ -396,6 +396,16 @@ export class Orchestrator {
       "Dispatching issue",
     );
 
+    // Assign issue to the authenticated user (fire and forget)
+    if (this.tracker.assignIssue) {
+      this.tracker.assignIssue(issue.id).catch((err: unknown) => {
+        this.logger.warn(
+          { issue_id: issue.id, issue_identifier: issue.identifier, err },
+          "Failed to assign issue to current user",
+        );
+      });
+    }
+
     // Spawn worker (async — fire and forget with callback)
     this.runWorker(issue, attempt, entry);
   }

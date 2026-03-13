@@ -72,7 +72,39 @@ export class AdoClient implements TrackerClient {
     return this.fetchWorkItemDetails(ids);
   }
 
+  async assignIssue(issueId: string): Promise<void> {
+    const email = await this.fetchCurrentUserEmail();
+    const url = `${this.baseUrl}/${encodeURIComponent(this.projectSlug)}/_apis/wit/workitems/${issueId}?api-version=${ADO_API_VERSION}`;
+    await this.request(url, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json-patch+json" },
+      body: JSON.stringify([
+        { op: "replace", path: "/fields/System.AssignedTo", value: email },
+      ]),
+    });
+  }
+
   // ---- Internal helpers ----
+
+  private async fetchCurrentUserEmail(): Promise<string> {
+    const url = `${this.baseUrl}/_apis/connectionData`;
+    const response = await this.request(url, { method: "GET" });
+    const data = (await response.json()) as {
+      authenticatedUser?: {
+        properties?: {
+          Account?: { $value?: string };
+        };
+      };
+    };
+    const email = data.authenticatedUser?.properties?.Account?.$value;
+    if (!email) {
+      throw new AdoApiError(
+        "ado_api_identity",
+        "Could not resolve authenticated user email from connectionData",
+      );
+    }
+    return email;
+  }
 
   private async executeWiql(query: string): Promise<number[]> {
     const url = `${this.baseUrl}/${encodeURIComponent(this.projectSlug)}/_apis/wit/wiql?api-version=${ADO_API_VERSION}&$top=${PAGE_SIZE}`;

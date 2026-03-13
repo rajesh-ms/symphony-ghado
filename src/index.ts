@@ -16,7 +16,7 @@ import { createLogger } from "./logging.js";
 async function main(): Promise<void> {
   // Parse CLI arguments
   const args = process.argv.slice(2);
-  let workflowPath = resolve("WORKFLOW.md");
+  let workflowPath = resolve(".symphony/WORKFLOW.md");
   let port: number | undefined;
 
   for (let i = 0; i < args.length; i++) {

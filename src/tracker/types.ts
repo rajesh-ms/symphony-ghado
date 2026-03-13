@@ -13,4 +13,7 @@ export interface TrackerClient {
 
   /** Fetch issues in given states (used for startup terminal cleanup). */
   fetchIssuesByStates(states: string[]): Promise<Issue[]>;
+
+  /** Assign the issue to the currently authenticated user (optional). */
+  assignIssue?(issueId: string): Promise<void>;
 }

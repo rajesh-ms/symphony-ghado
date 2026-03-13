@@ -18,13 +18,13 @@ The full product specification lives in `.github/instructions/prodspec.instructi
 | `src/index.ts` | CLI entry point — parses args, starts orchestrator | 17.7 |
 | `src/types.ts` | All domain model types and normalization helpers | 4 |
 | `src/logging.ts` | Structured logger (pino) | 13.1 |
-| `src/config/workflow-loader.ts` | Parses `WORKFLOW.md` (YAML front matter + prompt) | 5 |
+| `src/config/workflow-loader.ts` | Parses `.symphony/WORKFLOW.md` (YAML front matter + prompt) | 5 |
 | `src/config/config.ts` | Typed config resolution with defaults and `$VAR` expansion | 6 |
 | `src/config/validation.ts` | Dispatch preflight validation | 6.3 |
-| `src/config/watcher.ts` | Watches `WORKFLOW.md` for live reload | 6.2 |
-| `src/tracker/ado-client.ts` | Azure DevOps REST client (WIQL, batch fetch) | 11 |
+| `src/config/watcher.ts` | Watches `.symphony/WORKFLOW.md` for live reload | 6.2 |
+| `src/tracker/ado-client.ts` | Azure DevOps REST client (WIQL, batch fetch, auto-assign) | 11 |
 | `src/tracker/normalize.ts` | ADO payload → normalized Issue model | 11.3 |
-| `src/tracker/types.ts` | TrackerClient interface | 11.1 |
+| `src/tracker/types.ts` | TrackerClient interface (incl. optional `assignIssue`) | 11.1 |
 | `src/orchestrator/orchestrator.ts` | Poll loop, dispatch, reconciliation, retry | 7–8 |
 | `src/orchestrator/state.ts` | Pure state helpers (eligibility, sorting, backoff) | 7–8 |
 | `src/workspace/manager.ts` | Per-issue workspace create/reuse/clean | 9 |
@@ -66,9 +66,10 @@ The full product specification lives in `.github/instructions/prodspec.instructi
 
 | File | Purpose |
 |------|---------|
-| `WORKFLOW.md` | Active workflow definition (tracker config + prompt template) |
-| `WORKFLOW.md.example` | Documented example workflow |
-| `PLAN.md` | Implementation plan with phase completion status |
+| `.symphony/WORKFLOW.md` | Active workflow definition (tracker config + prompt template) |
+| `.symphony/WORKFLOW.md.example` | Documented example workflow |
+| `.symphony/SKILL.md` | Agent skill definition (workflow steps for ADO issues) |
+| `docs/PLAN.md` | Implementation plan with phase completion status |
 | `.github/instructions/prodspec.instructions.md` | Full product specification |
 | `package.json` | Dependencies, scripts (`build`, `test`, `dev`, `start`) |
 | `tsconfig.json` | TypeScript config (strict, ES2022, Node16) |
@@ -86,7 +87,7 @@ npm start            # node dist/index.js
 ## Architecture Summary
 
 ```
-WORKFLOW.md ──→ Workflow Loader ──→ Config Layer ──→ Orchestrator
+.symphony/WORKFLOW.md ──→ Workflow Loader ──→ Config Layer ──→ Orchestrator
                                                        │
                          ┌─────────────────────────────┤
                          ▼                             ▼
@@ -103,7 +104,7 @@ WORKFLOW.md ──→ Workflow Loader ──→ Config Layer ──→ Orchestra
 - **Workspace isolation**: Agent cwd must be inside workspace root (enforced in `safety.ts`)
 - **Approval policy**: `never` = auto-approve all (high-trust mode)
 - **Sandbox**: `danger-full-access` for full filesystem access
-- **Hooks**: Trusted — run from WORKFLOW.md which is repo-owned
+- **Hooks**: Trusted — run from `.symphony/WORKFLOW.md` which is repo-owned
 - **Secrets**: `$VAR` indirection; never logged
 
 ## Where to Look For...
@@ -113,7 +114,8 @@ WORKFLOW.md ──→ Workflow Loader ──→ Config Layer ──→ Orchestra
 | How issues are fetched from ADO | `src/tracker/ado-client.ts` |
 | How dispatch priority works | `src/orchestrator/state.ts` → `sortForDispatch` |
 | How the agent subprocess is launched | `src/agent/app-server-client.ts` → `launch()` |
-| How the prompt is built | `src/prompt/renderer.ts` + WORKFLOW.md body |
+| How the prompt is built | `src/prompt/renderer.ts` + `.symphony/WORKFLOW.md` body |
+| How auto-assign works | `src/orchestrator/orchestrator.ts` → `dispatchIssue` calls `tracker.assignIssue` |
 | How retries work | `src/orchestrator/orchestrator.ts` → `scheduleRetry` |
 | How token usage is tracked | `src/agent/events.ts` → `extractUsage` |
 | How hooks run on Windows/WSL | `src/workspace/hooks.ts` |
