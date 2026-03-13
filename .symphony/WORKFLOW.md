@@ -41,7 +41,7 @@ agent:
   max_turns: 10
   max_retry_backoff_ms: 30000
 codex:
-  command: codex app-server
+  command: wsl source ~/.nvm/nvm.sh && codex app-server
   approval_policy: never
   turn_timeout_ms: 3600000
   stall_timeout_ms: 300000

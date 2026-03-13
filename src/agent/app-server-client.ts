@@ -381,7 +381,10 @@ export class AppServerClient {
     if (toolId != null) {
       this.write({
         id: toolId as number,
-        result: { success: false, error: "unsupported_tool_call" },
+        result: {
+          success: false,
+          contentItems: [{ type: "inputText", text: JSON.stringify({ error: "unsupported_tool_call" }) }],
+        },
       });
     }
   }
@@ -391,9 +394,17 @@ export class AppServerClient {
     const toolId = params?.id ?? msg.id;
     const input = (params?.arguments ?? params?.input ?? {}) as Record<string, unknown>;
 
+    // Debug: log the incoming tool call message and the response we send
+    process.stderr.write(`[symphony-debug] ado_api tool call received: ${JSON.stringify(msg)}\n`);
+
     if (!this.trackerConfig) {
       if (toolId != null) {
-        this.write({ id: toolId as number, result: { success: false, error: "tracker not configured" } });
+        const resp = { id: toolId as number, result: {
+          success: false,
+          contentItems: [{ type: "inputText", text: JSON.stringify({ error: "tracker not configured" }) }],
+        }};
+        process.stderr.write(`[symphony-debug] sending response: ${JSON.stringify(resp)}\n`);
+        this.write(resp);
       }
       return;
     }
@@ -401,12 +412,22 @@ export class AppServerClient {
     // Execute async, respond when done
     executeAdoTool(input, this.trackerConfig).then((result) => {
       if (toolId != null) {
-        this.write({ id: toolId as number, result });
+        const resp = { id: toolId as number, result: {
+          success: result.success,
+          contentItems: [{ type: "inputText", text: JSON.stringify(result) }],
+        }};
+        process.stderr.write(`[symphony-debug] sending response: ${JSON.stringify(resp)}\n`);
+        this.write(resp);
       }
     }).catch((err: unknown) => {
       const errMsg = err instanceof Error ? err.message : String(err);
       if (toolId != null) {
-        this.write({ id: toolId as number, result: { success: false, error: errMsg } });
+        const resp = { id: toolId as number, result: {
+          success: false,
+          contentItems: [{ type: "inputText", text: JSON.stringify({ error: errMsg }) }],
+        }};
+        process.stderr.write(`[symphony-debug] sending error response: ${JSON.stringify(resp)}\n`);
+        this.write(resp);
       }
     });
   }
