@@ -1,0 +1,5 @@
+node_modules
+dist
+data/registry.json
+SKILL.md
+SYMPHONY_PROGRESS.md

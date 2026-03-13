@@ -1,0 +1,25 @@
+{
+  "name": "agent-marketplace-registry",
+  "version": "1.0.0",
+  "description": "AI agent registry service for the marketplace orchestration layer",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "tsc --noEmit -p tsconfig.json",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "test": "node --import tsx --test src/*.test.ts"
+  },
+  "keywords": [
+    "agent",
+    "registry",
+    "marketplace"
+  ],
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^25.4.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}
