@@ -77,9 +77,14 @@ export async function executeAdoTool(
     }
 
     const url = `${baseUrl}${input.path}`;
+    const reqHeaders = { ...headers };
+    // ADO work item PATCH requires json-patch+json content type
+    if (input.method.toUpperCase() === "PATCH" && input.path?.includes("_apis/wit/workitems")) {
+      reqHeaders["Content-Type"] = "application/json-patch+json";
+    }
     const fetchOptions: RequestInit = {
       method: input.method.toUpperCase(),
-      headers,
+      headers: reqHeaders,
     };
     if (input.body && input.method.toUpperCase() !== "GET") {
       fetchOptions.body = JSON.stringify(input.body);

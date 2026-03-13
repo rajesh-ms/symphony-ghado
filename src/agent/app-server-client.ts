@@ -336,7 +336,9 @@ export class AppServerClient {
 
     // Handle tool calls
     if (event.event === "unsupported_tool_call") {
-      const toolName = (msg.params as Record<string, unknown>)?.name as string | undefined;
+      const params = msg.params as Record<string, unknown> | undefined;
+      const toolName = (params?.name ?? params?.toolName) as string | undefined;
+      process.stderr.write(`[symphony] Tool call received: name=${toolName} method=${msg.method} params_keys=${params ? Object.keys(params).join(',') : 'none'}\n`);
       if (toolName === "ado_api" && this.trackerConfig) {
         this.handleAdoToolCall(msg);
       } else {
@@ -393,6 +395,8 @@ export class AppServerClient {
     const params = msg.params as Record<string, unknown> | undefined;
     const toolId = params?.id ?? msg.id;
     const input = (params?.arguments ?? params?.input ?? {}) as Record<string, unknown>;
+
+    process.stderr.write(`[symphony] ADO tool call: toolId=${toolId} input=${JSON.stringify(input).slice(0, 500)}\n`);
 
     if (!this.trackerConfig) {
       if (toolId != null) {
