@@ -381,12 +381,9 @@ export class AppServerClient {
     const params = msg.params as Record<string, unknown> | undefined;
     const callId = params?.callId ?? params?.id ?? msg.id;
     if (callId != null) {
-      this.write({
-        id: callId,
-        result: {
-          success: false,
-          contentItems: [{ type: "inputText", text: JSON.stringify({ error: "unsupported_tool_call" }) }],
-        },
+      this.sendNotification("dynamic_tool_response", {
+        callId,
+        contentItems: [{ type: "inputText", text: JSON.stringify({ error: "unsupported_tool_call" }) }],
       });
     }
   }
@@ -400,10 +397,10 @@ export class AppServerClient {
 
     if (!this.trackerConfig) {
       if (callId != null) {
-        this.write({ id: callId, result: {
-          success: false,
+        this.sendNotification("dynamic_tool_response", {
+          callId,
           contentItems: [{ type: "inputText", text: JSON.stringify({ error: "tracker not configured" }) }],
-        }});
+        });
       }
       return;
     }
@@ -412,19 +409,19 @@ export class AppServerClient {
     executeAdoTool(input, this.trackerConfig).then((result) => {
       process.stderr.write(`[symphony] ADO tool result: callId=${callId} success=${result.success} status=${result.status}\n`);
       if (callId != null) {
-        this.write({ id: callId, result: {
-          success: result.success,
+        this.sendNotification("dynamic_tool_response", {
+          callId,
           contentItems: [{ type: "inputText", text: JSON.stringify(result) }],
-        }});
+        });
       }
     }).catch((err: unknown) => {
       const errMsg = err instanceof Error ? err.message : String(err);
       process.stderr.write(`[symphony] ADO tool error: callId=${callId} error=${errMsg}\n`);
       if (callId != null) {
-        this.write({ id: callId, result: {
-          success: false,
+        this.sendNotification("dynamic_tool_response", {
+          callId,
           contentItems: [{ type: "inputText", text: JSON.stringify({ error: errMsg }) }],
-        }});
+        });
       }
     });
   }
@@ -503,7 +500,11 @@ export class AppServerClient {
 
   private write(msg: Record<string, unknown>): void {
     if (!this.process?.stdin?.writable) return;
-    this.process.stdin.write(JSON.stringify(msg) + "\n");
+    const json = JSON.stringify(msg);
+    if (msg.result) {
+      process.stderr.write(`[symphony] Writing to stdin: ${json.slice(0, 500)}\n`);
+    }
+    this.process.stdin.write(json + "\n");
   }
 
   private rejectAllPending(err: Error): void {
